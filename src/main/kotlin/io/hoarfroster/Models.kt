@@ -10,7 +10,7 @@ class Article(
     private val url: String
 ) {
     override fun toString(): String {
-        return "{\"title\":\"$title\",\"description\":\"$description\",\"translator\":\"$translator\",\"repoUrl\":\"$repoUrl\",\"tags\":$tags,\"time\":\"$time\",\"url\":\"$url\"}"
+        return "{\"title\":\"$title\",\"description\":\"$description\",\"translator\":\"$translator\",\"repoUrl\":\"$repoUrl\",\"tags\":$tags,\"time\":$time,\"url\":\"$url\"}"
     }
 }
 
@@ -18,6 +18,6 @@ class Tag(
     private val name: String
 ) {
     override fun toString(): String {
-        return "{\"name\":\"$name\",}"
+        return "{\"name\":\"$name\"}"
     }
 }
