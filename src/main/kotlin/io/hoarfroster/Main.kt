@@ -4,6 +4,7 @@ import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
 import org.jsoup.Jsoup
 import java.io.File
+import java.util.*
 
 fun main(args: Array<String>) {
 
@@ -40,8 +41,8 @@ fun main(args: Array<String>) {
             translator, /* TRANSLATOR */
             url, /* Repo URL */
             retrieveResult.tags, /* TAGS */
-            it.lastModified(), /* TIME */
-            it.path
+            Date(it.lastModified()).toString(), /* TIME */
+            it.path.replace("${inputDir}/documents/","/")
         )
     }
 
