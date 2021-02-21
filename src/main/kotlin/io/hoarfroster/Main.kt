@@ -42,7 +42,7 @@ fun main(args: Array<String>) {
             url, /* Repo URL */
             retrieveResult.tags, /* TAGS */
             Date(it.lastModified()).toString(), /* TIME */
-            it.path.replace("${inputDir}/documents/","/")
+            it.path.replace("${inputDir}/documents/","")
         )
     }
 
