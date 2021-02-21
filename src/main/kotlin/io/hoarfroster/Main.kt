@@ -3,13 +3,10 @@ package io.hoarfroster
 import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
 import org.jsoup.Jsoup
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.IOException
-import java.util.zip.GZIPOutputStream
-
 
 fun main(args: Array<String>) {
+
     var inputDir: String? = null
 
     for (name in args)
