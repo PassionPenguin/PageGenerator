@@ -23,7 +23,8 @@ fun retrieveResult(repoUrl: String): RetrieveResult {
                 && doc.selectFirst(".js-issue-labels").text().contains("翻译完成")
             ) {
                 doc.select(".js-issue-labels > *").forEach {
-                    tags.add(Tag(it.text()))
+                    if(!it.text().contains("翻译完成"))
+                        tags.add(Tag(it.text()))
                 }
             }
         }
