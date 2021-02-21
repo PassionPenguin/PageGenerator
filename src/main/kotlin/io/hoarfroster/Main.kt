@@ -18,7 +18,7 @@ fun main(args: Array<String>) {
     val dir = File("${inputDir}/documents/")
     val files = dir.listFiles { _, name -> name.endsWith(".md") }
     val filesInformation = files?.mapIndexed { index, it ->
-        Thread.sleep(if (index % 10 == 0) 1000 else 250)
+        Thread.sleep(if (index % 10 == 0) 1000 else 500)
         println("Processing ${it.path}")
 
         val sourceMarkdown = it.readText()

@@ -16,7 +16,7 @@ fun retrieveResult(repoUrl: String): RetrieveResult {
         }.map { e ->
             Regex("#([0-9]+?)$").find(e.html())?.groupValues?.get(1)
         }.forEach { it ->
-            Thread.sleep(250)
+            Thread.sleep(500)
             val conn = URL("https://github.com/xitu/gold-miner/pull/$it").openConnection() as HttpsURLConnection
             val doc = Jsoup.parse(conn.inputStream.bufferedReader().readText())
             if (doc.select(".js-issue-labels > *").size > 0
