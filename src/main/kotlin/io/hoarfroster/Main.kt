@@ -104,6 +104,7 @@ fun main(args: Array<String>) {
                                 )
                             }-${urlString.getLastSegment()})"""
                         )
+                        it.writeText(sourceMarkdown)
                     }
                 }
             }
@@ -118,7 +119,6 @@ fun main(args: Array<String>) {
             Date(it.lastModified()).toString(), /* TIME */
             it.path.replace("${inputDir}/documents/", "")
         )
-        it.writeText(sourceMarkdown)
     }
 
     val configJson = File("${inputDir}/config/article.min.json")
