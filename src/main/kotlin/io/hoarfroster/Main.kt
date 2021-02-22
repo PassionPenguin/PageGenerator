@@ -66,6 +66,7 @@ fun main(args: Array<String>) {
             ) {
                 /* Only download the image if the file is not existed */
                 if ((!this.isFile || !this.exists()) && !urlString.startsWith("../images/")) {
+                    Thread.sleep(1000)
                     println("   - Processing image $urlString")
                     if (!this.parentFile.isDirectory || this.parentFile.exists())
                         this.parentFile.mkdirs()
