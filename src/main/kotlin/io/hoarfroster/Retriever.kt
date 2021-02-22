@@ -7,6 +7,7 @@ import javax.net.ssl.HttpsURLConnection
 class RetrieveResult(val tags: MutableList<Tag>)
 
 fun retrieveResult(repoUrl: String): RetrieveResult {
+    println(" - Processing tags data")
     val tags: MutableList<Tag> = mutableListOf()
     val connection = URL(repoUrl.replace("blob", "commits")).openConnection() as HttpsURLConnection
     val document = Jsoup.parse(connection.inputStream.bufferedReader().readText())
