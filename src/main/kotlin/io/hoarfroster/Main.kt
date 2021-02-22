@@ -7,7 +7,7 @@ import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
-import java.net.URI
+import java.net.URL
 import java.util.*
 
 fun String.getLastSegment(): String {
@@ -36,6 +36,7 @@ fun main(args: Array<String>) {
         val document =
             Jsoup.parse(HtmlRenderer.builder().build().render(Parser.builder().build().parse(sourceMarkdown)))
 
+        val originalUrl = Regex("原文地址：\\[.+?]\\((.+?)\\)").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
         val url = Regex("本文永久链接：\\[.+?]\\((.+?)\\)").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
         val translator = Regex("译者：\\[(.+?)]").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
         val retrieveResult = retrieveResult(url)
@@ -52,7 +53,6 @@ fun main(args: Array<String>) {
             /* Download external resources */
             val alt = img.attr("alt")
             val urlString = img.attr("src")
-            val imageUri = URI.create(urlString)
 
             with(
                 File(
@@ -65,12 +65,21 @@ fun main(args: Array<String>) {
                 )
             ) {
                 /* Only download the image if the file is not existed */
-                if (!this.isFile || !this.exists()) {
+                if ((!this.isFile || !this.exists()) && !urlString.startsWith("../images/")) {
                     println("   - Processing image $urlString")
                     if (!this.parentFile.isDirectory || this.parentFile.exists())
                         this.parentFile.mkdirs()
                     this.createNewFile()
-                    val `in`: InputStream = BufferedInputStream(imageUri.toURL().openStream())
+                    val imageUrlConn = URL(urlString).openConnection()
+                    imageUrlConn.setRequestProperty("referer", originalUrl)
+                    imageUrlConn.setRequestProperty(
+                        "user-agent",
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36"
+                    )
+                    imageUrlConn.setRequestProperty("origin", "https://www.medium.com/")
+
+                    val `in`: InputStream = BufferedInputStream(imageUrlConn.getInputStream())
+
                     val out = ByteArrayOutputStream()
                     val buf = ByteArray(1024)
                     var n: Int
