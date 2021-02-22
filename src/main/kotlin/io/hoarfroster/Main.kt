@@ -16,12 +16,15 @@ fun String.getLastSegment(): String {
 }
 
 fun main(args: Array<String>) {
-
+    var downloadImage: Boolean = false
     var inputDir: String? = null
 
-    for (name in args)
+    for (name in args) {
         if (name.contains(Regex("--input=(.+?)")))
             inputDir = name.substring(8)
+        if (name.contains("--downloadImage"))
+            downloadImage = true
+    }
     if (inputDir == null)
         return
 
@@ -48,58 +51,60 @@ fun main(args: Array<String>) {
             }
         }
 
-        println(" - Processing image")
-        document.select("img").forEach { img ->
-            /* Download external resources */
-            val alt = img.attr("alt")
-            val urlString = img.attr("src")
+        if(downloadImage) {
+            println(" - Processing image")
+            document.select("img").forEach { img ->
+                /* Download external resources */
+                val alt = img.attr("alt")
+                val urlString = img.attr("src")
 
-            with(
-                File(
-                    "${inputDir}/images/${
-                        it.path.replace(
-                            "${inputDir}/documents/",
-                            ""
-                        )
-                    }-${urlString.getLastSegment()}"
-                )
-            ) {
-                /* Only download the image if the file is not existed */
-                if ((!this.isFile || !this.exists()) && !urlString.startsWith("../images/")) {
-                    Thread.sleep(1000)
-                    println("   - Processing image $urlString")
-                    if (!this.parentFile.isDirectory || this.parentFile.exists())
-                        this.parentFile.mkdirs()
-                    this.createNewFile()
-                    val imageUrlConn = URL(urlString).openConnection()
-                    imageUrlConn.setRequestProperty("referer", originalUrl)
-                    imageUrlConn.setRequestProperty(
-                        "user-agent",
-                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36"
-                    )
-                    imageUrlConn.setRequestProperty("origin", "https://www.medium.com/")
-
-                    val `in`: InputStream = BufferedInputStream(imageUrlConn.getInputStream())
-
-                    val out = ByteArrayOutputStream()
-                    val buf = ByteArray(1024)
-                    var n: Int
-                    while (-1 != `in`.read(buf).also { n = it }) {
-                        out.write(buf, 0, n)
-                    }
-                    out.close()
-                    `in`.close()
-                    val response = out.toByteArray()
-                    this.outputStream().write(response)
-                    sourceMarkdown = sourceMarkdown.replace(
-                        """![$alt]($urlString)""",
-                        """![$alt](../images/${
+                with(
+                    File(
+                        "${inputDir}/images/${
                             it.path.replace(
                                 "${inputDir}/documents/",
                                 ""
                             )
-                        }-${urlString.getLastSegment()})"""
+                        }-${urlString.getLastSegment()}"
                     )
+                ) {
+                    /* Only download the image if the file is not existed */
+                    if ((!this.isFile || !this.exists()) && !urlString.startsWith("../images/")) {
+                        Thread.sleep(1000)
+                        println("   - Processing image $urlString")
+                        if (!this.parentFile.isDirectory || this.parentFile.exists())
+                            this.parentFile.mkdirs()
+                        this.createNewFile()
+                        val imageUrlConn = URL(urlString).openConnection()
+                        imageUrlConn.setRequestProperty("referer", originalUrl)
+                        imageUrlConn.setRequestProperty(
+                            "user-agent",
+                            "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36"
+                        )
+                        imageUrlConn.setRequestProperty("origin", "https://www.medium.com/")
+
+                        val `in`: InputStream = BufferedInputStream(imageUrlConn.getInputStream())
+
+                        val out = ByteArrayOutputStream()
+                        val buf = ByteArray(1024)
+                        var n: Int
+                        while (-1 != `in`.read(buf).also { n = it }) {
+                            out.write(buf, 0, n)
+                        }
+                        out.close()
+                        `in`.close()
+                        val response = out.toByteArray()
+                        this.outputStream().write(response)
+                        sourceMarkdown = sourceMarkdown.replace(
+                            """![$alt]($urlString)""",
+                            """![$alt](../images/${
+                                it.path.replace(
+                                    "${inputDir}/documents/",
+                                    ""
+                                )
+                            }-${urlString.getLastSegment()})"""
+                        )
+                    }
                 }
             }
         }
