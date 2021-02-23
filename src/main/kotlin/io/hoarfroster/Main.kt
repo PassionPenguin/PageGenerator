@@ -16,7 +16,7 @@ fun String.getLastSegment(): String {
 }
 
 fun main(args: Array<String>) {
-    var downloadImage: Boolean = false
+    var downloadImage = false
     var inputDir: String? = null
 
     for (name in args) {
@@ -30,19 +30,11 @@ fun main(args: Array<String>) {
 
     val dir = File("${inputDir}/documents/")
     val files = dir.listFiles { _, name -> name.endsWith(".md") }
-    val filesInformation = files?.mapIndexed { index, it ->
-        /* Pause thread to prevent HTTP 419 */
-        Thread.sleep(if (index % 10 == 0) 1500 else 1000)
-        println("Processing ${it.path}")
-
+    val filesInformation: List<Article>? = files?.mapIndexed { index, it ->
         var sourceMarkdown = it.readText()
         val document =
             Jsoup.parse(HtmlRenderer.builder().build().render(Parser.builder().build().parse(sourceMarkdown)))
 
-        val originalUrl = Regex("原文地址：\\[.+?]\\((.+?)\\)").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
-        val url = Regex("本文永久链接：\\[.+?]\\((.+?)\\)").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
-        val translator = Regex("译者：\\[(.+?)]").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
-        val retrieveResult = retrieveResult(url)
         var description = ""
         for (e in document.select("p")) {
             if (e.text().isNotBlank()) {
@@ -51,74 +43,104 @@ fun main(args: Array<String>) {
             }
         }
 
-        if(downloadImage) {
-            println(" - Processing image")
-            document.select("img").forEach { img ->
-                /* Download external resources */
-                val alt = img.attr("alt")
-                val urlString = img.attr("src")
-
-                with(
-                    File(
-                        "${inputDir}/images/${
-                            it.path.replace(
-                                "${inputDir}/documents/",
-                                ""
-                            )
-                        }-${urlString.getLastSegment()}"
+        if (!sourceMarkdown.contains("掘金翻译计划")) {
+            val tags = mutableListOf<Tag>()
+            Regex("标签：(.+?)\n").find(sourceMarkdown)?.groupValues?.get(1)?.split("、")?.forEach {
+                tags.add(Tag(name = it))
+            }
+            Article(
+                document.selectFirst("h1").text(), /* TITLE */
+                description, /* DESCRIPTION */
+                "霜羽 Hoarfroster", /* AUTHOR */
+                "https://github.com/PassionPenguin/PassionPenguin.github.io/blob/${
+                    it.path.replace(
+                        inputDir,
+                        ""
                     )
-                ) {
-                    /* Only download the image if the file is not existed */
-                    if ((!this.isFile || !this.exists()) && !urlString.startsWith("../images/")) {
-                        Thread.sleep(1000)
-                        println("   - Processing image $urlString")
-                        if (!this.parentFile.isDirectory || this.parentFile.exists())
-                            this.parentFile.mkdirs()
-                        this.createNewFile()
-                        val imageUrlConn = URL(urlString).openConnection()
-                        imageUrlConn.setRequestProperty("referer", originalUrl)
-                        imageUrlConn.setRequestProperty(
-                            "user-agent",
-                            "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36"
-                        )
-                        imageUrlConn.setRequestProperty("origin", "https://www.medium.com/")
+                }", /* Repo URL */
+                tags, /* TAGS */
+                Date(it.lastModified()).toString(), /* TIME */
+                it.path.replace("${inputDir}/documents/", "")
+            )
+        } else {
+            /* Pause thread to prevent HTTP 419 */
+            Thread.sleep(if (index % 10 == 0) 1500 else 1000)
+            println("Processing ${it.path}")
 
-                        val `in`: InputStream = BufferedInputStream(imageUrlConn.getInputStream())
+            val originalUrl = Regex("原文地址：\\[.+?]\\((.+?)\\)").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
+            val url = Regex("本文永久链接：\\[.+?]\\((.+?)\\)").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
+            val translator = Regex("译者：\\[(.+?)]").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
+            val retrieveResult = retrieveResult(url)
 
-                        val out = ByteArrayOutputStream()
-                        val buf = ByteArray(1024)
-                        var n: Int
-                        while (-1 != `in`.read(buf).also { n = it }) {
-                            out.write(buf, 0, n)
-                        }
-                        out.close()
-                        `in`.close()
-                        val response = out.toByteArray()
-                        this.outputStream().write(response)
-                        sourceMarkdown = sourceMarkdown.replace(
-                            """![$alt]($urlString)""",
-                            """![$alt](../images/${
+            if (downloadImage) {
+                println(" - Processing image")
+                document.select("img").forEach { img ->
+                    /* Download external resources */
+                    val alt = img.attr("alt")
+                    val urlString = img.attr("src")
+
+                    with(
+                        File(
+                            "${inputDir}/images/${
                                 it.path.replace(
                                     "${inputDir}/documents/",
                                     ""
                                 )
-                            }-${urlString.getLastSegment()})"""
+                            }-${urlString.getLastSegment()}"
                         )
-                        it.writeText(sourceMarkdown)
+                    ) {
+                        /* Only download the image if the file is not existed */
+                        if ((!this.isFile || !this.exists()) && !urlString.startsWith("../images/")) {
+                            Thread.sleep(1000)
+                            println("   - Processing image $urlString")
+                            if (!this.parentFile.isDirectory || this.parentFile.exists())
+                                this.parentFile.mkdirs()
+                            this.createNewFile()
+                            val imageUrlConn = URL(urlString).openConnection()
+                            imageUrlConn.setRequestProperty("referer", originalUrl)
+                            imageUrlConn.setRequestProperty(
+                                "user-agent",
+                                "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36"
+                            )
+                            imageUrlConn.setRequestProperty("origin", "https://www.medium.com/")
+
+                            val `in`: InputStream = BufferedInputStream(imageUrlConn.getInputStream())
+
+                            val out = ByteArrayOutputStream()
+                            val buf = ByteArray(1024)
+                            var n: Int
+                            while (-1 != `in`.read(buf).also { n = it }) {
+                                out.write(buf, 0, n)
+                            }
+                            out.close()
+                            `in`.close()
+                            val response = out.toByteArray()
+                            this.outputStream().write(response)
+                            sourceMarkdown = sourceMarkdown.replace(
+                                """![$alt]($urlString)""",
+                                """![$alt](../images/${
+                                    it.path.replace(
+                                        "${inputDir}/documents/",
+                                        ""
+                                    )
+                                }-${urlString.getLastSegment()})"""
+                            )
+                            it.writeText(sourceMarkdown)
+                        }
                     }
                 }
             }
-        }
 
-        Article(
-            document.selectFirst("h1").text(), /* TITLE */
-            description, /* DESCRIPTION */
-            translator, /* TRANSLATOR */
-            url, /* Repo URL */
-            retrieveResult.tags, /* TAGS */
-            Date(it.lastModified()).toString(), /* TIME */
-            it.path.replace("${inputDir}/documents/", "")
-        )
+            Article(
+                document.selectFirst("h1").text(), /* TITLE */
+                description, /* DESCRIPTION */
+                translator, /* TRANSLATOR */
+                url, /* Repo URL */
+                retrieveResult.tags, /* TAGS */
+                Date(it.lastModified()).toString(), /* TIME */
+                it.path.replace("${inputDir}/documents/", "")
+            )
+        }
     }
 
     val configJson = File("${inputDir}/config/article.min.json")
