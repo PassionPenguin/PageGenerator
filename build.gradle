@@ -22,9 +22,18 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:1.4.21"
     implementation "org.commonmark:commonmark:0.17.1"
     implementation "org.jsoup:jsoup:1.13.1"
+    implementation "com.fasterxml.jackson.module:jackson-module-kotlin:2.12.+"
+    implementation 'org.projectlombok:lombok:1.18.18'
+
 }
 
 jar {
-    manifest { attributes 'Main-Class': 'io.hoarfroster.MainKt' }
-    from { configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    manifest {
+        attributes 'Main-Class': 'io.hoarfroster.MainKt'
+    }
+    from {
+        configurations.runtimeClasspath.collect {
+            it.isDirectory()? it: zipTree(it)
+        }
+    }
 }

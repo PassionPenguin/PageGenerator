@@ -1,5 +1,7 @@
 package io.hoarfroster
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import io.hoarfroster.*
 import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
 import org.jsoup.Jsoup
@@ -9,6 +11,7 @@ import java.io.File
 import java.io.InputStream
 import java.net.URL
 import java.util.*
+
 
 fun String.getLastSegment(): String {
     // return url.replaceFirst("[^?]*/(.*?)(?:\\?.*)","$1);" <-- incorrect
@@ -29,48 +32,25 @@ fun main(args: Array<String>) {
         return
 
     val dir = File("${inputDir}/documents/")
+    val configJson = File("${inputDir}/config/article.min.json")
     val files = dir.listFiles { _, name -> name.endsWith(".md") }
-    val filesInformation: List<Article>? = files?.mapIndexed { index, it ->
+    val mapper = jacksonObjectMapper()
+    val articles: Array<Article> = mapper.readValue(configJson, Array<Article>::class.java)
+    val tmp: MutableList<Article> = articles.toMutableList()
+
+    files?.mapIndexed { index, it ->
         var sourceMarkdown = it.readText()
         val document =
             Jsoup.parse(HtmlRenderer.builder().build().render(Parser.builder().build().parse(sourceMarkdown)))
 
-        var description = ""
-        for (e in document.select("p")) {
-            if (e.text().isNotBlank()) {
-                description = e.text()
-                break
+        if (articles.none { e -> e.title == document.selectFirst("h1").text() }) {
+            var description = ""
+            for (e in document.select("p")) {
+                if (e.text().isNotBlank()) {
+                    description = e.text()
+                    break
+                }
             }
-        }
-
-        if (!sourceMarkdown.contains("掘金翻译计划")) {
-            val tags = mutableListOf<Tag>()
-            Regex("标签：(.+?)\n").find(sourceMarkdown)?.groupValues?.get(1)?.split("、")?.forEach {
-                tags.add(Tag(name = it))
-            }
-            Article(
-                document.selectFirst("h1").text(), /* TITLE */
-                description, /* DESCRIPTION */
-                "霜羽 Hoarfroster", /* AUTHOR */
-                "https://github.com/PassionPenguin/PassionPenguin.github.io/blob/${
-                    it.path.replace(
-                        inputDir,
-                        ""
-                    )
-                }", /* Repo URL */
-                tags, /* TAGS */
-                Date(it.lastModified()).toString(), /* TIME */
-                it.path.replace("${inputDir}/documents/", "")
-            )
-        } else {
-            /* Pause thread to prevent HTTP 419 */
-            Thread.sleep(if (index % 10 == 0) 1500 else 1000)
-            println("Processing ${it.path}")
-
-            val originalUrl = Regex("原文地址：\\[.+?]\\((.+?)\\)").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
-            val url = Regex("本文永久链接：\\[.+?]\\((.+?)\\)").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
-            val translator = Regex("译者：\\[(.+?)]").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
-            val retrieveResult = retrieveResult(url)
 
             if (downloadImage) {
                 println(" - Processing image")
@@ -97,7 +77,7 @@ fun main(args: Array<String>) {
                                 this.parentFile.mkdirs()
                             this.createNewFile()
                             val imageUrlConn = URL(urlString).openConnection()
-                            imageUrlConn.setRequestProperty("referer", originalUrl)
+                            imageUrlConn.setRequestProperty("referer", URL(urlString).host)
                             imageUrlConn.setRequestProperty(
                                 "user-agent",
                                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36"
@@ -131,18 +111,51 @@ fun main(args: Array<String>) {
                 }
             }
 
-            Article(
-                document.selectFirst("h1").text(), /* TITLE */
-                description, /* DESCRIPTION */
-                translator, /* TRANSLATOR */
-                url, /* Repo URL */
-                retrieveResult.tags, /* TAGS */
-                Date(it.lastModified()).toString(), /* TIME */
-                it.path.replace("${inputDir}/documents/", "")
-            )
+            if (!sourceMarkdown.contains("掘金翻译计划")) {
+                val tags = mutableListOf<Tag>()
+                Regex("标签：(.+?)\n").find(sourceMarkdown)?.groupValues?.get(1)?.split("、")?.forEach {
+                    tags.add(Tag(it))
+                }
+                tmp.add(
+                    Article(
+                        document.selectFirst("h1").text(), /* TITLE */
+                        description, /* DESCRIPTION */
+                        "霜羽 Hoarfroster", /* AUTHOR */
+                        "https://github.com/PassionPenguin/PassionPenguin.github.io/blob/${
+                            it.path.replace(
+                                inputDir,
+                                ""
+                            )
+                        }", /* Repo URL */
+                        tags, /* TAGS */
+                        Date(it.lastModified()).toString(), /* TIME */
+                        it.path.replace("${inputDir}/documents/", "")
+                    )
+                )
+            } else {
+                /* Pause thread to prevent HTTP 419 */
+                Thread.sleep(if (index % 10 == 0) 1500 else 1000)
+                println("Processing ${it.path}")
+
+//                val originalUrl = Regex("原文地址：\\[.+?]\\((.+?)\\)").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
+                val url = Regex("本文永久链接：\\[.+?]\\((.+?)\\)").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
+                val translator = Regex("译者：\\[(.+?)]").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
+                val retrieveResult = retrieveResult(url)
+
+                tmp.add(
+                    Article(
+                        document.selectFirst("h1").text(), /* TITLE */
+                        description, /* DESCRIPTION */
+                        translator, /* TRANSLATOR */
+                        url, /* Repo URL */
+                        retrieveResult.tags, /* TAGS */
+                        Date(it.lastModified()).toString(), /* TIME */
+                        it.path.replace("${inputDir}/documents/", "")
+                    )
+                )
+            }
         }
     }
 
-    val configJson = File("${inputDir}/config/article.min.json")
-    configJson.writeText(filesInformation.toString())
+    configJson.writeText(tmp.toString())
 }
