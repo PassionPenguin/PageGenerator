@@ -43,71 +43,72 @@ fun main(args: Array<String>) {
         val document =
             Jsoup.parse(HtmlRenderer.builder().build().render(Parser.builder().build().parse(sourceMarkdown)))
 
+        println("Processing ${it.path}")
+
+        if (downloadImage) {
+            println(" - Processing image")
+            document.select("img").forEach { img ->
+                /* Download external resources */
+                val alt = img.attr("alt")
+                val urlString = img.attr("src")
+
+                with(
+                    File(
+                        "${inputDir}/images/${
+                            it.path.replace(
+                                "${inputDir}/documents/",
+                                ""
+                            )
+                        }-${urlString.getLastSegment()}"
+                    )
+                ) {
+                    /* Only download the image if the file is not existed */
+                    if ((!this.isFile || !this.exists()) && !urlString.startsWith("../images/")) {
+                        Thread.sleep(1000)
+                        println("   - Processing image $urlString")
+                        if (!this.parentFile.isDirectory || this.parentFile.exists())
+                            this.parentFile.mkdirs()
+                        this.createNewFile()
+                        val imageUrlConn = URL(urlString).openConnection()
+                        imageUrlConn.setRequestProperty("referer", URL(urlString).host)
+                        imageUrlConn.setRequestProperty(
+                            "user-agent",
+                            "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36"
+                        )
+                        imageUrlConn.setRequestProperty("origin", "https://www.medium.com/")
+
+                        val `in`: InputStream = BufferedInputStream(imageUrlConn.getInputStream())
+
+                        val out = ByteArrayOutputStream()
+                        val buf = ByteArray(1024)
+                        var n: Int
+                        while (-1 != `in`.read(buf).also { n = it }) {
+                            out.write(buf, 0, n)
+                        }
+                        out.close()
+                        `in`.close()
+                        val response = out.toByteArray()
+                        this.outputStream().write(response)
+                        sourceMarkdown = sourceMarkdown.replace(
+                            """![$alt]($urlString)""",
+                            """![$alt](../images/${
+                                it.path.replace(
+                                    "${inputDir}/documents/",
+                                    ""
+                                )
+                            }-${urlString.getLastSegment()})"""
+                        )
+                        it.writeText(sourceMarkdown)
+                    }
+                }
+            }
+        }
         if (articles.none { e -> e.title == document.selectFirst("h1").text() }) {
             var description = ""
             for (e in document.select("p")) {
                 if (e.text().isNotBlank()) {
                     description = e.text()
                     break
-                }
-            }
-
-            if (downloadImage) {
-                println(" - Processing image")
-                document.select("img").forEach { img ->
-                    /* Download external resources */
-                    val alt = img.attr("alt")
-                    val urlString = img.attr("src")
-
-                    with(
-                        File(
-                            "${inputDir}/images/${
-                                it.path.replace(
-                                    "${inputDir}/documents/",
-                                    ""
-                                )
-                            }-${urlString.getLastSegment()}"
-                        )
-                    ) {
-                        /* Only download the image if the file is not existed */
-                        if ((!this.isFile || !this.exists()) && !urlString.startsWith("../images/")) {
-                            Thread.sleep(1000)
-                            println("   - Processing image $urlString")
-                            if (!this.parentFile.isDirectory || this.parentFile.exists())
-                                this.parentFile.mkdirs()
-                            this.createNewFile()
-                            val imageUrlConn = URL(urlString).openConnection()
-                            imageUrlConn.setRequestProperty("referer", URL(urlString).host)
-                            imageUrlConn.setRequestProperty(
-                                "user-agent",
-                                "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_1_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36"
-                            )
-                            imageUrlConn.setRequestProperty("origin", "https://www.medium.com/")
-
-                            val `in`: InputStream = BufferedInputStream(imageUrlConn.getInputStream())
-
-                            val out = ByteArrayOutputStream()
-                            val buf = ByteArray(1024)
-                            var n: Int
-                            while (-1 != `in`.read(buf).also { n = it }) {
-                                out.write(buf, 0, n)
-                            }
-                            out.close()
-                            `in`.close()
-                            val response = out.toByteArray()
-                            this.outputStream().write(response)
-                            sourceMarkdown = sourceMarkdown.replace(
-                                """![$alt]($urlString)""",
-                                """![$alt](../images/${
-                                    it.path.replace(
-                                        "${inputDir}/documents/",
-                                        ""
-                                    )
-                                }-${urlString.getLastSegment()})"""
-                            )
-                            it.writeText(sourceMarkdown)
-                        }
-                    }
                 }
             }
 
@@ -135,7 +136,6 @@ fun main(args: Array<String>) {
             } else {
                 /* Pause thread to prevent HTTP 419 */
                 Thread.sleep(if (index % 10 == 0) 1500 else 1000)
-                println("Processing ${it.path}")
 
 //                val originalUrl = Regex("原文地址：\\[.+?]\\((.+?)\\)").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
                 val url = Regex("本文永久链接：\\[.+?]\\((.+?)\\)").find(sourceMarkdown)?.groupValues?.get(1) ?: ""
