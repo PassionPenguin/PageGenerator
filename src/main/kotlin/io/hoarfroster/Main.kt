@@ -112,7 +112,7 @@ fun main(args: Array<String>) {
                 }
             }
 
-            if (!sourceMarkdown.contains("掘金翻译计划")) {
+            if (!sourceMarkdown.contains("本文永久链接：")) {
                 val tags = mutableListOf<Tag>()
                 Regex("标签：(.+?)\n").find(sourceMarkdown)?.groupValues?.get(1)?.split("、")?.forEach {
                     tags.add(Tag(it))
